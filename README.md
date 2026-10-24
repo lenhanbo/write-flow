@@ -5,11 +5,11 @@ PyTorch research implementation for word-level offline handwriting synthesis con
 The model combines:
 
 - a character Transformer for content;
-- a patch-token CNN style encoder inspired by WriteViT's writer encoder;
+- either native lightweight conditioning or a portable WriteViT Writer + Unifont + cross-attention conditioner;
 - a compact conditional DiT with a separate timestep for every image token;
 - four controlled variants: `vanilla_fm`, `dual_fm`, `self_flow`, and the proposed `ink_self_flow` extension.
 
-Self-Flow follows the clean-at-`t=0`, noise-at-`t=1` convention in [Chefer et al.](https://arxiv.org/abs/2603.06507). The official [Self-Flow repository](https://github.com/black-forest-labs/Self-Flow) currently exposes ImageNet inference; this repository implements the paper's training mechanism for handwriting and does not claim to reproduce its experiments. Ink-aware masking is an unvalidated extension, not part of the original paper. WriteViT is referenced architecturally; its GAN, OCR loss and required Unifont representation are intentionally not copied.
+Self-Flow follows the clean-at-`t=0`, noise-at-`t=1` convention in [Chefer et al.](https://arxiv.org/abs/2603.06507). The official [Self-Flow repository](https://github.com/black-forest-labs/Self-Flow) currently exposes ImageNet inference; this repository implements the paper's training mechanism for handwriting and does not claim to reproduce its experiments. Ink-aware masking is an unvalidated extension, not part of the original paper. The optional WriteViT conditioner ports the Writer Encoder, Unifont query representation, and query-to-style CrossBlocks; its GAN generator/discriminator and OCR training are not used. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## Install
 
@@ -33,7 +33,7 @@ python -m self_flow_hwg.cli.prepare_iam --iam-root "D:\data\IAM" --out "data\spl
 python -m self_flow_hwg.cli.check_data --config "configs\self_flow_tiny.yaml" --output "outputs\data_check"
 ```
 
-Preparation saves exact writer-disjoint JSON manifests, hashes, the train-only vocabulary, and a summary. Training references are sampled dynamically; validation/test pairing is seeded and fixed. Images retain aspect ratio on a white `64×256` canvas (`white=1`, `ink=0`).
+Preparation saves exact writer-disjoint JSON manifests, hashes, the train-only vocabulary, and a summary. Image paths inside new manifests are relative to `data.iam_root`, so the same manifests work on Windows and Kaggle. Training references are sampled dynamically; validation/test pairing is seeded and fixed. Images retain aspect ratio on a white `64×256` canvas (`white=1`, `ink=0`).
 
 ## Train
 
@@ -46,6 +46,51 @@ python -m self_flow_hwg.train.train_flow --config "configs\dual_fm_tiny.yaml" --
 python -m self_flow_hwg.train.train_flow --config "configs\self_flow_tiny.yaml" --ae-checkpoint "outputs\ae\best.pt" --output "outputs\C_self"
 python -m self_flow_hwg.train.train_flow --config "configs\ink_self_flow_tiny.yaml" --ae-checkpoint "outputs\ae\best.pt" --output "outputs\D_ink"
 ```
+
+## WriteViT-conditioned Flow
+
+Set `model.conditioning: writevit` to replace the native content/style encoders with:
+
+```text
+reference -> WriteViT Writer Encoder -> style tokens
+query IDs -> WriteViT Unifont Encoder -> query tokens
+query tokens cross-attend to style tokens
+styled query + style tokens -> latent Flow DiT
+```
+
+`configs/writevit_self_flow_tiny.yaml` uses learned character embeddings when `unifont_path` is null so unit and smoke tests remain self-contained. This fallback is for validation only. For real training, configure both the original `unifont.pickle` and a WriteViT checkpoint:
+
+```yaml
+model:
+  conditioning: writevit
+  unifont_path: D:/datasets/writevit/unifont.pickle
+  writevit_checkpoint: D:/checkpoints/writevit/model.pth
+  freeze_conditioning: true
+```
+
+Then run:
+
+```powershell
+python -m self_flow_hwg.train.train_flow --config "configs\writevit_self_flow_tiny.yaml" --ae-checkpoint "outputs\ae\best.pt" --output "outputs\writevit_self_flow"
+```
+
+The loader imports compatible `netW`, `netG.query_embed.linear`, and `netG.blocks_2` parameters and reports loaded, skipped, and missing keys. The new Flow DiT replaces the WriteViT pixel/GAN generator; it is not merely a different final output layer.
+
+Start with the original-style pixel-space Flow Matching baseline before enabling latent Self-Flow:
+
+```powershell
+python -m self_flow_hwg.train.train_pixel_flow --config "configs\writevit_fm_tiny.yaml" --output "outputs\writevit_pixel_fm"
+```
+
+This baseline follows the convention of Lipman et al.: Gaussian pixel noise at `t=0`, image data at `t=1`, and a conditional OT probability path with configurable `sigma_min`. It constructs no autoencoder, latent normalization, EMA teacher, dual-timestep mask, representation projector, or ink-aware loss. Images are mapped from `[0,1]` to `[-1,1]` before Flow Matching.
+
+Sample directly in pixel space—no AE checkpoint is needed:
+
+```powershell
+python -m self_flow_hwg.cli.sample_pixel_flow --checkpoint "outputs\writevit_pixel_fm\best.pt" --text "minimum" --reference "D:\data\reference.png" --seed 17 --steps 50 --output "outputs\samples\minimum_pixel_fm.png"
+```
+
+The older `train_flow` entry point remains available for separate latent FM/Self-Flow experiments and deliberately uses a frozen autoencoder.
 
 Resume with `--resume "outputs\C_self\last.pt"` after increasing `train.max_steps`. Checkpoints contain model, EMA teacher where applicable, objective/projector, optimizer, AMP scaler, latent statistics/config/vocabulary, step and torch RNG state. JSONL losses and an AE reconstruction grid are written beside checkpoints.
 
@@ -76,4 +121,8 @@ Sampling integrates the ODE backward from `t=1` to `t=0` with Euler or Heun and 
 Automated tests cover writer-disjoint splitting, non-self references, vocabulary and padding, grayscale masks, AE shapes/range/gradients, lossless patch inversion, per-token time conditioning, shared-noise dual scheduling, teacher time, exact ink-aware mask cardinality, frozen EMA behavior, all four objectives, and backward ODE sign/determinism.
 
 Dataset-dependent quality, external recognizer/style metrics, and GPU memory fit cannot be asserted without user-supplied IAM data, weights, and hardware.
+
+## Kaggle
+
+Use `configs/ae_kaggle.yaml` and `configs/writevit_self_flow_kaggle.yaml`. IAM, Unifont, WriteViT weights, and previous checkpoints should be attached as Kaggle Datasets under `/kaggle/input`; all outputs go to `/kaggle/working`. Copy-ready notebook cells and the expected dataset layout are in [kaggle/README.md](kaggle/README.md). The project does not initialize or modify a Git repository.
 "# write-flow" 

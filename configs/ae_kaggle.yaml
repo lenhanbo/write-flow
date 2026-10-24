@@ -1,0 +1,22 @@
+seed: 42
+data:
+  iam_root: /kaggle/input/iam-handwriting/IAM
+  split_dir: /kaggle/input/iam-splits/splits
+  resolution: [64, 256]
+  batch_size: 4
+  num_workers: 2
+  max_text_length: 32
+model:
+  ae_latent_channels: 8
+  ae_base_channels: 32
+train:
+  device: auto
+  max_steps: 10000
+  smoke_steps: 5
+  lr: 0.0002
+  amp: auto
+  ink_weight: 2.0
+  edge_weight: 0.2
+  gradient_clip_norm: 1.0
+  save_every_steps: 500
+

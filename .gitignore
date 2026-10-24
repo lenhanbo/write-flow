@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.venv/
+outputs/
+data/splits/
+*.pt
+*.pth
+*.ckpt
+wandb/
+assets/unifont.pickle
+

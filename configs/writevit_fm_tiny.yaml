@@ -1,0 +1,41 @@
+seed: 42
+data:
+  iam_root: null
+  split_dir: data/splits
+  resolution: [64, 256]
+  batch_size: 2
+  num_workers: 0
+  max_text_length: 32
+model:
+  space: pixel
+  writevit_checkpoint: null
+  unifont_path: null
+  freeze_conditioning: false
+  writevit_dim: 256
+  writer_depth: 3
+  fusion_depth: 5
+  writevit_heads: 4
+  style_tokens: 8
+  vocab_size: 32
+  condition_dim: 64
+  base_channels: 16
+  flow_heads: 4
+flow:
+  variant: vanilla_fm
+  path: conditional_ot
+  convention: noise_t0_data_t1
+  sigma_min: 0.001
+  ode_solver: euler
+  ode_steps: 30
+train:
+  device: auto
+  max_steps: 20000
+  smoke_steps: 5
+  synthetic_samples: 8
+  grad_accum_steps: 4
+  lr: 0.0001
+  weight_decay: 0.01
+  gradient_clip_norm: 1.0
+  amp: auto
+  save_every_steps: 1000
+

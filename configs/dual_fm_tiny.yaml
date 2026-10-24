@@ -1,0 +1,6 @@
+seed: 42
+data: {iam_root: null, resolution: [64, 256], split_dir: data/splits, batch_size: 2, num_workers: 0, max_text_length: 32}
+model: {ae_latent_channels: 8, latent_size: [16, 64], patch_size: 2, vocab_size: 32, hidden_dim: 64, depth: 4, num_heads: 4, content_depth: 1, style_tokens: 4, student_feature_layer: 1, teacher_feature_layer: 3}
+flow: {variant: dual_fm, mask_ratio: 0.25, rep_gamma: 0.8, rep_warmup_steps: 20, ema_decay: 0.999, ode_solver: euler, ode_steps: 20}
+train: {device: auto, max_steps: 20000, smoke_steps: 5, synthetic_samples: 8, grad_accum_steps: 4, lr: 0.0001, weight_decay: 0.01, gradient_clip_norm: 1.0, amp: auto, activation_checkpointing: true}
+
