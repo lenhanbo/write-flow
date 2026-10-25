@@ -45,7 +45,8 @@ Create portable writer-disjoint manifests directly from the raw IAM files:
 !python -m self_flow_hwg.cli.prepare_iam \
   --iam-root /kaggle/input/iam-handwriting/IAM \
   --out /kaggle/working/splits \
-  --seed 42
+  --seed 42 \
+  --validate-images
 ```
 
 The standard config then initializes the Writer encoder, learned query

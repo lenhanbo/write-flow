@@ -97,10 +97,17 @@ def parse_gt_manifest(iam_root: str | Path, filename: str, *, validate_images: b
     return records, counts
 
 
-def build_packaged_gt_splits(iam_root: str | Path, seed: int = 42) -> tuple[dict[str, list[dict]], dict]:
+def build_packaged_gt_splits(
+    iam_root: str | Path, seed: int = 42, *, validate_images: bool = False
+) -> tuple[dict[str, list[dict]], dict]:
     """Use packaged train/val lists, then split validation groups into val/test."""
-    train, train_counts = parse_gt_manifest(iam_root, "train_gt.txt")
-    held_out, val_counts = parse_gt_manifest(iam_root, "val_gt.txt")
+    train, train_counts = parse_gt_manifest(iam_root, "train_gt.txt", validate_images=validate_images)
+    held_out, val_counts = parse_gt_manifest(iam_root, "val_gt.txt", validate_images=validate_images)
+    if not train:
+        raise FileNotFoundError(
+            f"No usable training images found below {Path(iam_root)}. "
+            "Check data.iam_root and verify the uploaded Kaggle Dataset contains words/."
+        )
     train_groups = {row["writer_id"] for row in train}
     overlap_groups = train_groups & {row["writer_id"] for row in held_out}
     held_out = [row for row in held_out if row["writer_id"] not in overlap_groups]
@@ -121,6 +128,7 @@ def build_packaged_gt_splits(iam_root: str | Path, seed: int = 42) -> tuple[dict
     summary = {
         "source": "packaged_gt",
         "writer_id_source": "form_proxy",
+        "images_validated": validate_images,
         "warning": "forms.txt is absent; each form is conservatively treated as a separate style group",
         "train_manifest": train_counts,
         "val_manifest": val_counts,

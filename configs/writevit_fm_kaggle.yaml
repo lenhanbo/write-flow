@@ -1,6 +1,6 @@
 seed: 42
 data:
-  iam_root: /kaggle/input/iam-handwriting/IAM
+  iam_root: /kaggle/input/datasets/ngkinwang/iam-dataset/iam_dataset
   split_dir: /kaggle/working/splits
   resolution: [64, 256]
   batch_size: 2

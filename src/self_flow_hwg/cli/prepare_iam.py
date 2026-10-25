@@ -10,7 +10,7 @@ from self_flow_hwg.data.iam import build_packaged_gt_splits, build_writer_disjoi
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Validate IAM and create writer-disjoint manifests")
-    parser.add_argument("--iam-root", required=True); parser.add_argument("--out", required=True); parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--iam-root", required=True); parser.add_argument("--out", required=True); parser.add_argument("--seed", type=int, default=42); parser.add_argument("--validate-images", action="store_true")
     args = parser.parse_args()
     root = Path(args.iam_root)
     if (root / "ascii" / "words.txt").is_file() and (root / "ascii" / "forms.txt").is_file():
@@ -18,7 +18,7 @@ def main() -> None:
         splits = build_writer_disjoint_splits(records, args.seed)
         source_summary = {"source": "official_ascii", "parse": counts, "writer_id_source": "forms.txt"}
     elif (root / "train_gt.txt").is_file() and (root / "val_gt.txt").is_file():
-        splits, source_summary = build_packaged_gt_splits(root, args.seed)
+        splits, source_summary = build_packaged_gt_splits(root, args.seed, validate_images=args.validate_images)
         counts = {"ok": sum(map(len, splits.values()))}
     else:
         raise FileNotFoundError(
