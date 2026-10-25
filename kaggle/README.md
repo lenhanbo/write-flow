@@ -5,14 +5,14 @@ GitHub, use the following cells in a Kaggle notebook.
 
 ## Inputs
 
-Attach these datasets to the notebook:
+Attach only the original IAM dataset to the notebook:
 
 1. `iam-handwriting`: IAM root containing `ascii/` and `words/`.
-2. `iam-splits`: portable manifests produced by `prepare_iam` (paths inside the
-   manifests are relative to the IAM root).
-3. `writevit-assets`: `unifont.pickle` from WriteViT.
-4. `writevit-checkpoint`: the WriteViT checkpoint to reuse.
-5. Optionally, an existing AE/checkpoint dataset when resuming.
+2. Optionally, an existing run checkpoint dataset when resuming.
+
+The default pixel-FM Kaggle config uses learned character embeddings. It does
+not require WriteViT's preprocessed dataset, `unifont.pickle`, or pretrained
+weights.
 
 Kaggle mounts inputs read-only below `/kaggle/input`. Write every generated
 artifact below `/kaggle/working`.
@@ -32,13 +32,25 @@ from pathlib import Path
 
 required = [
     "/kaggle/input/iam-handwriting/IAM/ascii/words.txt",
-    "/kaggle/input/iam-splits/splits/train.json",
-    "/kaggle/input/writevit-assets/unifont.pickle",
-    "/kaggle/input/writevit-checkpoint/model.pth",
+    "/kaggle/input/iam-handwriting/IAM/ascii/forms.txt",
+    "/kaggle/input/iam-handwriting/IAM/words",
 ]
 for item in required:
     assert Path(item).exists(), item
 ```
+
+Create portable writer-disjoint manifests directly from the raw IAM files:
+
+```python
+!python -m self_flow_hwg.cli.prepare_iam \
+  --iam-root /kaggle/input/iam-handwriting/IAM \
+  --out /kaggle/working/splits \
+  --seed 42
+```
+
+The standard config then initializes the Writer encoder, learned query
+embedding, query/style CrossBlocks, and Flow backbone from scratch. All model
+parameters receive gradients.
 
 Training an AE is only needed for later latent Self-Flow experiments, not for the original pixel-space FM baseline:
 

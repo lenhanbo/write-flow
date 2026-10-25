@@ -35,6 +35,20 @@ python -m self_flow_hwg.cli.check_data --config "configs\self_flow_tiny.yaml" --
 
 Preparation saves exact writer-disjoint JSON manifests, hashes, the train-only vocabulary, and a summary. Image paths inside new manifests are relative to `data.iam_root`, so the same manifests work on Windows and Kaggle. Training references are sampled dynamically; validation/test pairing is seeded and fixed. Images retain aspect ratio on a white `64×256` canvas (`white=1`, `ink=0`).
 
+The local dataset at `../data/iam_dataset` uses a packaged layout with
+`train_gt.txt`, `val_gt.txt`, and `words/` rather than IAM's `ascii/forms.txt`.
+Prepare it with:
+
+```powershell
+python -m self_flow_hwg.cli.prepare_iam --iam-root "..\data\iam_dataset" --out "data\splits_local" --seed 42
+python -m self_flow_hwg.cli.check_data --config "configs\writevit_fm_local.yaml" --output "outputs\local_data_check"
+```
+
+Because that package omits the official form-to-writer mapping, the loader uses
+each form as a conservative style group. Words paired within a form necessarily
+share a writer, but separate forms from the same writer are not merged. Any
+form occurring in both supplied splits is removed from the held-out split.
+
 ## Train
 
 Train one AE and reuse it for A–D:
@@ -58,14 +72,14 @@ query tokens cross-attend to style tokens
 styled query + style tokens -> latent Flow DiT
 ```
 
-`configs/writevit_self_flow_tiny.yaml` uses learned character embeddings when `unifont_path` is null so unit and smoke tests remain self-contained. This fallback is for validation only. For real training, configure both the original `unifont.pickle` and a WriteViT checkpoint:
+`configs/writevit_self_flow_tiny.yaml` uses learned character embeddings when `unifont_path` is null so unit and smoke tests remain self-contained. To train from scratch while retaining the WriteViT design, use the glyph table but leave the checkpoint empty:
 
 ```yaml
 model:
   conditioning: writevit
   unifont_path: D:/datasets/writevit/unifont.pickle
-  writevit_checkpoint: D:/checkpoints/writevit/model.pth
-  freeze_conditioning: true
+  writevit_checkpoint: null
+  freeze_conditioning: false
 ```
 
 Then run:
@@ -74,7 +88,7 @@ Then run:
 python -m self_flow_hwg.train.train_flow --config "configs\writevit_self_flow_tiny.yaml" --ae-checkpoint "outputs\ae\best.pt" --output "outputs\writevit_self_flow"
 ```
 
-The loader imports compatible `netW`, `netG.query_embed.linear`, and `netG.blocks_2` parameters and reports loaded, skipped, and missing keys. The new Flow DiT replaces the WriteViT pixel/GAN generator; it is not merely a different final output layer.
+The Writer encoder, query/style CrossBlocks, and Flow network are initialized and trained together from scratch. `unifont.pickle` contains character bitmaps rather than trained weights; setting it to null switches to learned embeddings. Legacy checkpoint loading remains available only for optional ablations.
 
 Start with the original-style pixel-space Flow Matching baseline before enabling latent Self-Flow:
 
@@ -124,5 +138,14 @@ Dataset-dependent quality, external recognizer/style metrics, and GPU memory fit
 
 ## Kaggle
 
-Use `configs/ae_kaggle.yaml` and `configs/writevit_self_flow_kaggle.yaml`. IAM, Unifont, WriteViT weights, and previous checkpoints should be attached as Kaggle Datasets under `/kaggle/input`; all outputs go to `/kaggle/working`. Copy-ready notebook cells and the expected dataset layout are in [kaggle/README.md](kaggle/README.md). The project does not initialize or modify a Git repository.
+For the current baseline, attach only the original IAM dataset and use
+`configs/writevit_fm_kaggle.yaml`. All outputs go to `/kaggle/working`.
+Additional assets and an AE are only relevant to optional later experiments.
+Copy-ready notebook cells are in [kaggle/README.md](kaggle/README.md). The
+project does not initialize or modify a Git repository.
+
+For the primary pixel-space FM baseline, `configs/writevit_fm_kaggle.yaml`
+requires only the original IAM dataset. It creates splits under
+`/kaggle/working/splits`, uses learned query embeddings, and trains every model
+component from scratch.
 "# write-flow" 

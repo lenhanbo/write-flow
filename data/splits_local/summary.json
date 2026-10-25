@@ -1,0 +1,36 @@
+{
+  "source": "packaged_gt",
+  "writer_id_source": "form_proxy",
+  "warning": "forms.txt is absent; each form is conservatively treated as a separate style group",
+  "train_manifest": {
+    "ok": 92254,
+    "malformed": 0,
+    "missing_image": 0,
+    "images_validated": 0
+  },
+  "val_manifest": {
+    "ok": 23064,
+    "malformed": 0,
+    "missing_image": 0,
+    "images_validated": 0
+  },
+  "excluded_overlapping_form_groups": 1,
+  "parse": {
+    "ok": 115258
+  },
+  "splits": {
+    "train": {
+      "samples": 92253,
+      "style_groups": 1240
+    },
+    "val": {
+      "samples": 11360,
+      "style_groups": 149
+    },
+    "test": {
+      "samples": 11645,
+      "style_groups": 149
+    }
+  },
+  "vocab_size": 78
+}
